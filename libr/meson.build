@@ -21,6 +21,12 @@ parse_plugins = [ 'att2intel' ]
 if get_option('nogpl')
   user_plugins += ['nogrub']
 endif
+if get_option('use_libsqsh')
+  libsqsh_dep = dependency('libsqsh', version: '>=1.4.0', required: false)
+  if libsqsh_dep.found()
+  fs_plugins += ['squashfs']
+endif
+endif
 
 # This must be splitted in meson.builds for each module
 # meson split is results in 1 empty element when splitting an empty string :facepalm:

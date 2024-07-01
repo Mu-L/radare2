@@ -3019,6 +3019,14 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 	bool segments_only = true;
 	RList *io_section_info = NULL;
 	ut64 bin_hashlimit = r_config_get_i (r->config, "bin.hashlimit");
+	if (r->bin->cur == NULL) {
+		if (pj) {
+			pj_a (pj);
+			pj_end (pj);
+		}
+		return false;
+	}
+	r_io_use_fd (r->io, r->bin->cur->fd);
 	ut64 filesize = (r->io->desc) ? r_io_fd_size (r->io, r->io->desc->fd): 0;
 
 	if (!dup_chk_ht) {
@@ -3107,6 +3115,7 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 		}
 		io_section_info = r_list_newf ((RListFree)free);
 	}
+	int plimit = filesize? R_MIN (filesize, bin_hashlimit): bin_hashlimit;
 	r_list_foreach (sections, iter, section) {
 		char perms[] = "----";
 		int va_sect = va;
@@ -3236,8 +3245,7 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 			char *hashstr = NULL;
 			if (hashtypes) {
 				int datalen = section->size;
-				int limit = filesize? R_MIN (filesize, bin_hashlimit): bin_hashlimit;
-				if (datalen > 0 && datalen < limit) {
+				if (datalen > 0 && datalen < plimit) {
 					ut8 *data = malloc (datalen);
 					if (!data) {
 						goto out;
@@ -3271,8 +3279,7 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 			pj_ks (pj, "perm", perms);
 			if (hashtypes && (int)section->size > 0) {
 				int datalen = section->size;
-				int limit = filesize? R_MIN (filesize, bin_hashlimit): bin_hashlimit;
-				if (datalen > 0 && datalen < limit) {
+				if (datalen > 0 && datalen < plimit) {
 					ut8 *data = malloc (datalen);
 					if (!data) {
 						goto out;
@@ -3284,8 +3291,8 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 						R_LOG_ERROR ("Cannot read section at 0x%08"PFMT64x, section->paddr);
 					}
 					free (data);
-				} else if (r->bin->verbose) {
-					R_LOG_ERROR ("Section at 0x%08"PFMT64x" larger than bin.hashlimit", section->paddr);
+				} else { // if (r->bin->verbose) {
+					R_LOG_WARN ("Section at 0x%08"PFMT64x" larger than bin.hashlimit", section->paddr);
 				}
 			}
 			pj_kn (pj, "paddr", section->paddr);
@@ -3295,9 +3302,8 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 			char *hashstr = NULL, str[128];
 			if (hashtypes && section->size > 0) {
 				int datalen = section->size;
-				int limit = filesize? R_MIN (filesize, bin_hashlimit): bin_hashlimit;
-				if (datalen > 0 && datalen < limit) {
-					ut8 *data = malloc (datalen);
+				if (datalen > 0 && datalen < plimit) {
+					ut8 *data = calloc (datalen, 1);
 					if (!data) {
 						goto out;
 					}
@@ -3305,10 +3311,11 @@ static bool bin_sections(RCore *r, PJ *pj, int mode, ut64 laddr, int va, ut64 at
 					if (dl == datalen) {
 						hashstr = build_hash_string (pj, mode, hashtypes, data, datalen);
 					} else if (r->bin->verbose) {
-						R_LOG_ERROR ("Cannot read section at 0x%08"PFMT64x, section->paddr);
+						hashstr = strdup ("*error*");
+						R_LOG_WARN ("Cannot read section at 0x%08"PFMT64x, section->paddr);
 					}
 					free (data);
-				} else if (r->bin->verbose) {
+				} else {
 					R_LOG_WARN ("Section at 0x%08"PFMT64x" larger than bin.hashlimit", section->paddr);
 				}
 			}
@@ -3403,6 +3410,10 @@ static bool bin_fields(RCore *r, PJ *pj, int mode, int va) {
 	RBin *bin = r->bin;
 	RBinObject *o = r_bin_cur_object (bin);
 	if (!o) {
+		if (IS_MODE_JSON (mode)) {
+			pj_o (pj);
+			pj_end (pj);
+		}
 		return false;
 	}
 	RList *fields = o->fields;

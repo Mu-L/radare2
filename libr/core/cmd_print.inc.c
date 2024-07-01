@@ -336,7 +336,7 @@ static RCoreHelpMessage help_msg_ph = {
 	"ph", " md5", "compute md5 hash of current block",
 	"ph", ":md5", "same as 'ph md5' (colon acts as a space)",
 	"ph", " sha1 32 @ 0x1000", "calculate sha1 of 32 bytes starting at 0x1000",
-	"ph", "", "list available hash plugins",
+	"ph", "", "list available hash plugins (same as Lh and phl/phL)",
 	"phj", "", "list available hash plugins in json",
 	NULL
 };
@@ -1384,7 +1384,7 @@ static void cmd_pDj(RCore *core, const char *arg) {
 	if (bsize < 0) {
 		bsize = -bsize;
 	}
-	PJ *pj = pj_new ();
+	PJ *pj = r_core_pj_new (core);
 	if (!pj) {
 		return;
 	}
@@ -1404,7 +1404,7 @@ static void cmd_pDj(RCore *core, const char *arg) {
 
 static void cmd_pdj(RCore *core, const char *arg, ut8* block) {
 	int nblines = r_num_math (core->num, arg);
-	PJ *pj = pj_new ();
+	PJ *pj = r_core_pj_new (core);
 	if (!pj) {
 		return;
 	}
@@ -3574,11 +3574,11 @@ restore_conf:
 	}
 }
 
-static void algolist(int mode) {
+static void algolist(RCore *core, int mode) {
 	int i;
 	PJ *pj = NULL;
 	if (mode == 'j') {
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		pj_a (pj);
 	}
 	for (i = 0; i < R_HASH_NBITS; i++) {
@@ -3607,31 +3607,31 @@ static void algolist(int mode) {
 static bool cmd_print_ph(RCore *core, const char *input) {
 	char algo[128];
 	ut32 osize = 0, len = core->blocksize;
-	const char *ptr;
 	int pos = 0, handled_cmd = false;
 
-	if (*input == '?') {
+	const char i0 = input[0];
+	if (i0 == '?') {
 		r_core_cmd_help (core, help_msg_ph);
 		return true;
 	}
-	if (!*input) {
-		algolist (1);
+	if (!i0 || i0 == 'l' || i0 == 'L') {
+		algolist (core, 1);
 		return true;
 	}
-	if (*input == 'j') {
-		algolist ('j');
+	if (i0 == 'j') {
+		algolist (core, 'j');
 		return true;
 	}
-	if (*input == '=') {
-		algolist (0);
+	if (i0 == '=') {
+		algolist (core, 0);
 		return true;
 	}
-	if (*input == ':') {
+	if (i0 == ':') {
 		input++;
 	}
 	input = r_str_trim_head_ro (input);
-	ptr = strchr (input, ' ');
-	sscanf (input, "%31s", algo);
+	const char *ptr = strchr (input, ' ');
+	r_str_ncpy (algo, input, sizeof (algo) - 1);
 	if (ptr && ptr[1]) { // && r_num_is_valid_input (core->num, ptr + 1)) {
 		int nlen = r_num_math (core->num, ptr + 1);
 		if (nlen > 0) {
@@ -4038,6 +4038,9 @@ static bool cmd_print_blocks(RCore *core, const char *input) {
 	list = r_core_get_boundaries_prot (core, -1, NULL, "search");
 	if (!list) {
 		result = true;
+		if (mode == 'j') {
+			r_cons_println ("{}");
+		}
 		goto cleanup;
 	}
 	RListIter *iter;
@@ -4057,6 +4060,9 @@ static bool cmd_print_blocks(RCore *core, const char *input) {
 	ut64 piece = R_MAX ((to - from) / R_MAX (cols, w), 1);
 	as = r_core_anal_get_stats (core, from, to, piece);
 	if (!as) {
+		if (mode == 'j') {
+			r_cons_println ("{}");
+		}
 		goto cleanup;
 	}
 
@@ -4076,7 +4082,7 @@ static bool cmd_print_blocks(RCore *core, const char *input) {
 #endif
 		goto cleanup;
 	case 'j': // "p-j"
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		if (!pj) {
 			goto cleanup;
 		}
@@ -4724,7 +4730,7 @@ static void cmd_print_bars(RCore *core, const char *input) {
 		int i;
 		switch (submode) {
 		case 'j': {
-			PJ *pj = pj_new ();
+			PJ *pj = r_core_pj_new (core);
 			if (!pj) {
 				return;
 			}
@@ -5130,7 +5136,7 @@ static void disasm_recursive(RCore *core, ut64 addr, int count, char type_print)
 	ut8 buf[128];
 	PJ *pj = NULL;
 	if (type_print == 'j') {
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		if (!pj) {
 			return;
 		}
@@ -5191,7 +5197,7 @@ static void func_walk_blocks(RCore *core, RAnalFunction *f, char input, char typ
 	}
 	r_list_sort (f->bbs, (RListComparator) bbcmp);
 	if (input == 'j' && b) { // "pdrj"
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		if (!pj) {
 			return;
 		}
@@ -5426,7 +5432,7 @@ static void cmd_pxr(RCore *core, int len, int mode, int wordsize, const char *ar
 		r_table_add_column (t, s, "refs", 0);
 	}
 	if (mode == 'j') {
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		if (!pj) {
 			return;
 		}
@@ -5668,7 +5674,7 @@ static bool cmd_pi(RCore *core, const char *input, int len, int l, ut8 *block) {
 			// check for bounds
 			if (input[3] != 0) {
 				if (input[3] == 'j') { // "pifcj"
-					pj = pj_new ();
+					pj = r_core_pj_new (core);
 					pj_a (pj);
 				}
 			}
@@ -5822,6 +5828,94 @@ static void core_print_decompile(RCore *core, const char *input) {
 		r_anal_op_free (op);
 	}
 	r_esil_toc_free (ec);
+}
+
+static void cmd_print_pxb(RCore *core, int len, const char *input) {
+	const int cols = r_config_get_i (core->config, "hex.cols");
+	ut32 n;
+	ut64 n64;
+	int columns = cols / 4;
+	if (columns % 2) {
+		columns++;
+	}
+	switch (columns) {
+	case 3:
+	case 5:
+		columns = 4;
+		break;
+	case 6:
+	case 7:
+		columns = 8;
+		break;
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		if (columns < 1) {
+			columns = 1;
+		} else {
+			columns = 4;
+		}
+		break;
+	}
+	int lastc = columns - 1;
+	int i, c;
+	char buf[32];
+	for (i = c = 0; i < len; i++, c++) {
+		if (c == 0) {
+			ut64 ea = core->offset + i;
+			if (core->print->pava) {
+				ut64 va = r_io_p2v (core->io, ea);
+				if (va != UT64_MAX) {
+					ea = va;
+				}
+			}
+			r_print_section (core->print, ea);
+			r_print_offset (core->print, ea, 0, 0, NULL);
+		}
+		r_str_bits (buf, core->block + i, 8, NULL);
+
+		// split bits
+		memmove (buf + 5, buf + 4, 5);
+		buf[4] = 0;
+		r_print_cursor (core->print, i, 1, 1);
+		if (input[1] == 'B') {
+			r_str_replace_ch (buf, '0', '.', true);
+			r_str_replace_ch (buf + 5, '0', '.', true);
+		}
+		r_cons_printf ("%s_%s  ", buf, buf + 5);
+		r_print_cursor (core->print, i, 1, 0);
+		if (c == lastc) {
+			const ut8 *b = core->block + i - 3;
+			int (*k) (const ut8 *, int) = cmd_pxb_k;
+			char (*p) (char) = cmd_pxb_p;
+			switch (columns) {
+			case 1:
+				n = k (b, 0);
+				r_cons_printf ("0x%02x  %c\n", n, p (b[0]));
+				break;
+			case 2:
+				n = k (b, 0) | k (b, 1);
+				r_cons_printf ("0x%04x  %c%c\n", n, p (b[0]), p (b[1]));
+				break;
+			case 4:
+				n = k (b, 0) | k (b, 1) | k (b, 2) | k (b, 3);
+				r_cons_printf ("0x%08x  %c%c%c%c\n",
+					n, p (b[0]), p (b[1]), p (b[2]), p (b[3]));
+				break;
+			case 8:
+				n64 = k (b, 0) | k (b, 1) | k (b, 2) | k (b, 3)
+				  | k (b, 4) | k (b, 5) | k (b, 6) | k (b, 7);
+				r_cons_printf ("0x%016"PFMT64x"  %c%c%c%c%c%c%c%c\n", n64,
+					p (b[0]), p (b[1]), p (b[2]), p (b[3]),
+					p (b[4]), p (b[5]), p (b[6]), p (b[7]));
+				break;
+			}
+			c = -1;
+		}
+	}
 }
 
 #if 0
@@ -6509,14 +6603,17 @@ static int cmd_print(void *data, const char *input) {
 			break;
 		case 'd': // "pdd" // r2dec
 			R_LOG_ERROR ("Missing plugin. Run: r2pm -ci r2dec");
+			r_core_return_code (core, 1);
 			processed_cmd = true;
 			break;
 		case 'z': // "pdz" // retdec
 			R_LOG_ERROR ("Missing plugin. Run: r2pm -ci r2retdec");
+			r_core_return_code (core, 1);
 			processed_cmd = true;
 			break;
 		case 'g': // "pdg" // r2ghidra
 			R_LOG_ERROR ("Missing plugin. Run: r2pm -ci r2ghidra");
+			r_core_return_code (core, 1);
 			processed_cmd = true;
 			break;
 		case 'c': // "pdc" // "pDc"
@@ -6653,7 +6750,7 @@ static int cmd_print(void *data, const char *input) {
 						r_io_read_at (core->io, b->addr, block, b->size);
 
 						if (input[2] == 'j') {
-							pj = pj_new ();
+							pj = r_core_pj_new (core);
 							if (!pj) {
 								break;
 							}
@@ -6721,7 +6818,7 @@ static int cmd_print(void *data, const char *input) {
 					ut32 fcn_size = r_anal_function_realsize (f);
 					const char *orig_bb_middle = r_config_get (core->config, "asm.bbmiddle");
 					r_config_set_i (core->config, "asm.bbmiddle", false);
-					pj = pj_new ();
+					pj = r_core_pj_new (core);
 					if (!pj) {
 						break;
 					}
@@ -6970,7 +7067,7 @@ static int cmd_print(void *data, const char *input) {
 				char *s = print_analstr (core, core->offset, 128);
 				if (s) {
 					if (input[2] == 'j') {
-						PJ *pj = pj_new ();
+						PJ *pj = r_core_pj_new (core);
 						pj_o (pj);
 						pj_kn (pj, "addr", core->offset);
 						pj_ks (pj, "text", s);
@@ -7675,44 +7772,7 @@ static int cmd_print(void *data, const char *input) {
 		case 'b': // "pxb"
 		case 'B': // "pxB"
 			if (l) {
-				ut32 n;
-				int i, c;
-				char buf[32];
-				for (i = c = 0; i < len; i++, c++) {
-					if (c == 0) {
-						ut64 ea = core->offset + i;
-						if (core->print->pava) {
-							ut64 va = r_io_p2v (core->io, ea);
-							if (va != UT64_MAX) {
-								ea = va;
-							}
-						}
-						r_print_section (core->print, ea);
-						r_print_offset (core->print, ea, 0, 0, NULL);
-					}
-					r_str_bits (buf, core->block + i, 8, NULL);
-
-					// split bits
-					memmove (buf + 5, buf + 4, 5);
-					buf[4] = 0;
-					r_print_cursor (core->print, i, 1, 1);
-					if (input[1] == 'B') {
-						r_str_replace_ch (buf, '0', '.', true);
-						r_str_replace_ch (buf + 5, '0', '.', true);
-					}
-					r_cons_printf ("%s_%s  ", buf, buf + 5);
-					r_print_cursor (core->print, i, 1, 0);
-					if (c == 3) {
-						const ut8 *b = core->block + i - 3;
-						int (*k) (const ut8 *, int) = cmd_pxb_k;
-						char (*p) (char) = cmd_pxb_p;
-
-						n = k (b, 0) | k (b, 1) | k (b, 2) | k (b, 3);
-						r_cons_printf ("0x%08x  %c%c%c%c\n",
-							n, p (b[0]), p (b[1]), p (b[2]), p (b[3]));
-						c = -1;
-					}
-				}
+				cmd_print_pxb (core, len, input);
 			}
 			break;
 		case 'c': // "pxc"

@@ -738,6 +738,8 @@ static void register_helpers(JSContext *ctx) {
 		"{console.log((typeof x==='string')?x:JSON.stringify(x, null, 2));}"
 		"}");
 	eval (ctx, "var console = { log:print, error:print, debug:print };");
+	eval (ctx, "r2.cmd2 = (x) => JSON.parse(r2.cmd(`'{\"cmd\":\"${x}\"}`));");
+	eval (ctx, "r2.cmd2j = (x) => JSON.parse(r2.cmd(`'{\"cmd\":\"${x}\",\"json\":true}`));");
 	eval (ctx, "r2.cmdj = (x) => JSON.parse(r2.cmd(x));");
 	eval (ctx, "r2.cmdAt = (x, a) => r2.cmd(x + ' @ ' + a);");
 	eval (ctx, "r2.call = (x) => r2.cmd('\"\"' + x);");
@@ -745,13 +747,26 @@ static void register_helpers(JSContext *ctx) {
 	eval (ctx, "var global = globalThis; var G = globalThis;");
 	eval (ctx, js_require_qjs);
 	eval (ctx, "require = function(x) { if (x == 'r2papi') { return new R2Papi(r2); } ; return requirejs(x); }");
-	eval (ctx, "var exports = {};");
+	eval (ctx, "var exports = G;");
 	// eval (ctx, "G.r2pipe = {open: function(){ return R.r2;}};");
 	eval (ctx, "G.R2Pipe=() => R.r2;");
 	if (r_sys_getenv_asbool ("R2_DEBUG_NOPAPI")) {
 		eval (ctx, "R=r2;");
 	} else {
-		eval (ctx, js_r2papi_qjs);
+		char *custom_papi = r_sys_getenv ("R2_PAPI_SCRIPT");
+		if (R_STR_ISNOTEMPTY (custom_papi)) {
+			char *script = r_file_slurp (custom_papi, NULL);
+			if (script) {
+				eval (ctx, script);
+				free (script);
+			} else {
+				R_LOG_ERROR ("Cannot find %s", custom_papi);
+			}
+			free (custom_papi);
+		} else {
+			eval (ctx, js_r2papi_qjs);
+			// r_file_dump ("rapi.qjs", js_r2papi_qjs, strlen (js_r2papi_qjs), 0);
+		}
 		eval (ctx, "R=G.R=new R2Papi(r2);");
 		eval (ctx, "G.Process = new ProcessClass(r2);");
 		eval (ctx, "G.Module = new ModuleClass(r2);");

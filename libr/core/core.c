@@ -1076,6 +1076,7 @@ static const char *radare_argv[] = {
 	"ft?", "ft", "ftn", "fV", "fx", "fq",
 	"fz?", "fz", "fz-", "fz.", "fz:", "fz*",
 	"g?", "g", "gw", "gc", "gl?", "gl", "gs", "gi", "gp", "ge", "gr", "gS",
+	"help",
 	"i?", "i", "ij", "iA", "ia", "ib", "ic", "icc", "iC",
 	"id?", "id", "idp", "idpi", "idpi*", "idpd", "iD", "ie", "iee", "iE", "iE.",
 	"ih", "iHH", "ii", "iI", "ik", "il", "iL", "im", "iM", "io", "iO?", "iO",
@@ -1085,7 +1086,7 @@ static const char *radare_argv[] = {
 	"l",
 	"L?", "L", "L-", "Ll", "LL", "La", "Lc", "Ld", "Lh", "Li", "Lo",
 	"m?", "m", "m*", "ml", "m-", "md", "mf?", "mf", "mg", "mo", "mi", "mp", "ms", "my",
-	"o?", "o", "o-", "o--", "o+", "oe", "oa", "oa-", "oq", "oqq", "o*", "o**", "o.", "o=",
+	"o?", "o", "o-", "o--", "o+", "oe", "oa", "oa-", "oq", "oqq", "open", "o*", "o**", "o.", "o=",
 	"ob?", "ob", "ob*", "obo", "oba", "obf", "obj", "obr", "ob-", "ob-*", "obi",
 	"oc", "of", "oi", "oj", "oL", "om", "on",
 	"oo?", "oo", "oo+", "oob", "ood", "oom", "oon", "oon+", "oonn", "oonn+",
@@ -2790,7 +2791,7 @@ static void __init_autocomplete_default(RCore* core) {
 	};
 	const char *files[] = {
 		".", "..", ".*", "/F", "/m", "!", "!!", "#!c", "#!v", "#!cpipe", "#!qjs", "#!tiny", "#!vala", "v.",
-		"#!rust", "#!zig", "#!pipe", "#!python", "aeli", "arp", "arpg", "dmd", "drp", "drpg", "o", "oe", "ot", "o+", "o++", "on",
+		"#!rust", "#!zig", "#!pipe", "#!python", "aeli", "arp", "arpg", "dmd", "drp", "drpg", "oe", "ot", "o+", "o++", "on", "open",
 		"idp", "idpi", "L", "obf", "o+", "o", "oc", "of", "r2", "rabin2", "rasm2", "rahash2", "rax2", "wff",
 		"rafind2", "cd", "ls", "lua", "on", "wf", "rm", "wF", "wp", "Sd", "Sl", "to", "pm",
 		"/m", "zos", "zfd", "zfs", "zfz", "cat", "wta", "wtf", "wxf", "dml", "dd", "dd+",
@@ -3889,7 +3890,7 @@ reaccept:
 						} else {
 							pipefd = -1;
 						}
-						R_LOG_ERROR ("(flags: %d) len: %d filename: '%s'", flg, cmd, ptr);
+						R_LOG_INFO ("(flags: %d) len: %d filename: '%s'", flg, cmd, ptr);
 					} else {
 						pipefd = -1;
 						R_LOG_ERROR ("Cannot open file (%s)", ptr);
@@ -4407,6 +4408,22 @@ R_API PJ *r_core_pj_new(RCore *core) {
 	return pj_new_with_encoding (string_encoding, number_encoding);
 }
 
+static void channel_stop(void *u) {
+	// RCore *core = (RCore *)u;
+	RThreadChannelPromise *promise = (RThreadChannelPromise*)u;
+	promise->tc->responses = NULL;
+	r_th_lock_leave (promise->tc->lock);
+#if 0
+	r_th_lock_free (promise->tc->lock);
+#endif
+	promise->tc->lock = NULL;
+//	r_th_channel_promise_free (promise);
+#if 0
+	r_th_channel_free (core->chan);
+	core->chan = NULL;
+#endif
+}
+
 // reentrant version of RCore.cmd()
 R_API char *r_core_cmd_str_r(RCore *core, const char *cmd) {
 	if (r_str_startswith (cmd, "::")) {
@@ -4417,13 +4434,18 @@ R_API char *r_core_cmd_str_r(RCore *core, const char *cmd) {
 	}
 	RThreadChannelMessage *message = r_th_channel_message_new (core->chan, (const ut8*)cmd, strlen (cmd) + 1);
 	RThreadChannelPromise *promise = r_th_channel_query (core->chan, message);
+	r_cons_break_push (channel_stop, promise);
 	RThreadChannelMessage *response = r_th_channel_promise_wait (promise);
-	char *res = response->msg? strdup ((const char *)response->msg): NULL;
+	char *res = NULL;
+	if (response) {
+		res = response->msg? strdup ((const char *)response->msg): NULL;
+	}
 	// r_cons_printf ("%s", response->msg);
 	r_th_channel_message_free (message);
 	r_th_channel_promise_free (promise);
-	if (message != response) {
+	if (response && message != response) {
 		r_th_channel_message_free (response);
 	}
+	r_cons_break_pop ();
 	return res;
 }

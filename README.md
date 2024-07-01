@@ -6,7 +6,7 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/741/badge)](https://bestpractices.coreinfrastructure.org/projects/741) [![Build Status](https://scan.coverity.com/projects/416/badge.svg)](https://scan.coverity.com/projects/416) [![Discord](https://badgen.net/discord/members/YBey7CR9jf)](https://discord.gg/YBey7CR9jf)
 
 See the [Releases](https://github.com/radareorg/radare2/releases) page for
-downloads. The current git `master` branch is `5.9.1`, next will be `5.9.2`.
+downloads. The current git `master` branch is `5.9.3`, next will be `5.9.4`.
 
 * Since r2-5.6.0 all the patch releases are [abi stable](doc/abi.md)
 * Odd patch versions are used in git builds only, releases use even numbers
@@ -164,5 +164,5 @@ GB/GBA, NDS and N3DS, and mount several filesystems like NTFS, FAT, HFS+, EXT,..
 * [![Homebrew package](https://repology.org/badge/version-for-repo/homebrew/radare2.svg)](https://repology.org/project/radare2/versions) [![MacPorts package](https://repology.org/badge/version-for-repo/macports/radare2.svg)](https://repology.org/project/radare2/versions)
 * [![Haiku Ports](https://repology.org/badge/version-for-repo/haikuports_master/radare2.svg)](https://repology.org/project/radare2/versions) [![Void Linux](https://repology.org/badge/version-for-repo/void_x86_64/radare2.svg)](https://repology.org/project/radare2/versions)
 * [![Ubuntu 24.04 package](https://repology.org/badge/version-for-repo/ubuntu_24_04/radare2.svg)](https://repology.org/project/radare2/versions) [![Ubuntu 23.04 package](https://repology.org/badge/version-for-repo/ubuntu_23_04/radare2.svg)](https://repology.org/project/radare2/versions) [![Ubuntu 20.04 package](https://repology.org/badge/version-for-repo/ubuntu_20_04/radare2.svg)](https://repology.org/project/radare2/versions) [![Ubuntu 18.04 package](https://repology.org/badge/version-for-repo/ubuntu_18_04/radare2.svg)](https://repology.org/project/radare2/versions)
-* [![Debian Unstable package](https://repology.org/badge/version-for-repo/debian_unstable/radare2.svg)](https://repology.org/project/radare2/versions) [![Debian Stable package](https://repology.org/badge/version-for-repo/debian_stable/radare2.svg)](https://repology.org/project/radare2/versions) 
+* [![Debian Unstable package](https://repology.org/badge/version-for-repo/debian_unstable/radare2.svg)](https://repology.org/project/radare2/versions) [![Debian 12 package](https://repology.org/badge/version-for-repo/debian_12/radare2.svg)](https://repology.org/project/radare2/versions) 
 [![Kali Linux Rolling package](https://repology.org/badge/version-for-repo/kali_rolling/radare2.svg)](https://repology.org/project/radare2/versions)

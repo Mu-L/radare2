@@ -435,7 +435,7 @@ static void cmd_mount_ls(RCore *core, const char *input) {
 	RList *list = r_fs_dir (core->fs, input);
 	PJ *pj = NULL;
 	if (isJSON) {
-		pj = pj_new ();
+		pj = r_core_pj_new (core);
 		pj_a (pj);
 	}
 	if (list) {
@@ -518,6 +518,9 @@ static int cmd_mount(void *data, const char *_input) {
 	}
 	if (r_str_startswith (_input, "al")) { // "mal" "man ?"
 		return cmd_man (data, "man ?");
+	}
+	if (r_str_startswith (_input, "ake")) { // "make"
+		return r_sys_cmdf ("make%s", _input + 3);
 	}
 	if (r_str_startswith (_input, "ktemp")) { // "mktemp"
 		return cmd_mktemp (data, _input);
